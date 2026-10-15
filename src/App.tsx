@@ -35,6 +35,31 @@ export default function App() {
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [activeSegmentMode, setActiveSegmentMode] = useState<'friends' | 'family' | 'agency'>('friends');
 
+  const [theme, setTheme] = useState<'day' | 'night'>(() => {
+    const saved = localStorage.getItem('crewvoyage_theme');
+    if (saved === 'night' || saved === 'day') return saved;
+    if (typeof window !== 'undefined' && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches) {
+      return 'night';
+    }
+    return 'day';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('crewvoyage_theme', theme);
+    const root = document.documentElement;
+    if (theme === 'night') {
+      root.classList.add('dark');
+      root.classList.remove('light');
+    } else {
+      root.classList.remove('dark');
+      root.classList.add('light');
+    }
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'day' ? 'night' : 'day'));
+  };
+
   // Sync to local storage
   useEffect(() => {
     localStorage.setItem('crewvoyage_trip', JSON.stringify(trip));
@@ -90,7 +115,7 @@ export default function App() {
   const activeDay = trip.days[0];
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col font-sans selection:bg-slate-900 selection:text-white">
+    <div className={`min-h-screen ${theme === 'night' ? 'bg-[#0b0f19] text-slate-100' : 'bg-slate-50 text-slate-900'} flex flex-col font-sans selection:bg-slate-900 selection:text-white transition-colors duration-200`}>
       {/* Top Bar following Top Bar Contract */}
       <Header
         currentTab={currentTab}
@@ -99,6 +124,8 @@ export default function App() {
         allMembers={trip.members}
         onSelectTraveler={handleSelectTraveler}
         onOpenExportModal={() => setIsExportModalOpen(true)}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       {/* Target Audience Segment Strip (from Canvas: Private Friends | Family Group | Travel Agency) */}
@@ -175,6 +202,7 @@ export default function App() {
             trip={trip}
             activeTraveler={activeTraveler}
             onUpdateTrip={handleUpdateTrip}
+            isNightMode={theme === 'night'}
           />
         )}
 

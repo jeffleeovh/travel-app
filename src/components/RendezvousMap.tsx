@@ -11,15 +11,18 @@ interface RendezvousMapProps {
   trip: Trip;
   activeTraveler: Traveler;
   onUpdateTrip: (updated: Trip) => void;
+  isNightMode?: boolean;
 }
 
 export const RendezvousMap: React.FC<RendezvousMapProps> = ({
   trip,
   activeTraveler,
   onUpdateTrip,
+  isNightMode = false,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
+  const tileLayerRef = useRef<L.TileLayer | null>(null);
   const markersRef = useRef<{ [key: string]: L.Marker }>({});
 
   const [isEditingBeacon, setIsEditingBeacon] = useState(false);
@@ -52,11 +55,17 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
 
     mapInstanceRef.current = map;
 
-    // High quality Voyager tiles for clear Singapore street detail
-    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+    // High quality tiles: Voyager for day, Dark Matter for night
+    const tileUrl = isNightMode
+      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+
+    const tiles = L.tileLayer(tileUrl, {
       maxZoom: 19,
       attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
     }).addTo(map);
+
+    tileLayerRef.current = tiles;
 
     // Click map to update active traveler location
     map.on('click', (e: L.LeafletMouseEvent) => {
@@ -94,6 +103,15 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
       }
     };
   }, []);
+
+  // Update map tile theme when isNightMode changes
+  useEffect(() => {
+    if (!tileLayerRef.current) return;
+    const tileUrl = isNightMode
+      ? 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png';
+    tileLayerRef.current.setUrl(tileUrl);
+  }, [isNightMode]);
 
   // Update Markers when trip data or active traveler changes
   useEffect(() => {
