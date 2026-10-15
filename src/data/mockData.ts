@@ -12,6 +12,7 @@ export const INITIAL_MEMBERS: Traveler[] = [
     battery: 94,
     lastActive: 'Just now',
     isAtMeetup: false,
+    coordinates: [1.2820, 103.8445], // Chinatown Pagoda St
   },
   {
     id: 'mem-2',
@@ -24,6 +25,7 @@ export const INITIAL_MEMBERS: Traveler[] = [
     battery: 72,
     lastActive: '1m ago',
     isAtMeetup: true,
+    coordinates: [1.2807, 103.8504], // Lau Pa Sat
   },
   {
     id: 'mem-3',
@@ -36,6 +38,7 @@ export const INITIAL_MEMBERS: Traveler[] = [
     battery: 45,
     lastActive: '5m ago',
     isAtMeetup: true,
+    coordinates: [1.2822, 103.8486], // Telok Ayer MRT
   },
   {
     id: 'mem-4',
@@ -48,6 +51,7 @@ export const INITIAL_MEMBERS: Traveler[] = [
     battery: 16, // low battery indicator
     lastActive: '11m ago',
     isAtMeetup: false,
+    coordinates: [1.2803, 103.8475], // Amoy Street
   },
   {
     id: 'mem-5',
@@ -60,6 +64,7 @@ export const INITIAL_MEMBERS: Traveler[] = [
     battery: 83,
     lastActive: '3m ago',
     isAtMeetup: false,
+    coordinates: [1.2818, 103.8512], // Cross St
   },
 ];
 
@@ -76,6 +81,7 @@ export const INITIAL_TRIP: Trip = {
     time: '18:30',
     notes: 'Priya has choped our table with tissue packs. Stalls 7 & 8 satay feast starts at 18:45 sharp. Don’t be late lah!',
     updatedAt: '5 mins ago by Priya (Foodie Lead)',
+    coordinates: [1.2807, 103.8504], // Lau Pa Sat
   },
   members: INITIAL_MEMBERS,
   days: [

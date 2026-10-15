@@ -9,6 +9,7 @@ export interface Traveler {
   battery: number;
   lastActive: string;
   isAtMeetup: boolean;
+  coordinates?: [number, number]; // [lat, lng]
 }
 
 export interface ActivityItem {
@@ -105,6 +106,7 @@ export interface Trip {
     time: string;
     notes: string;
     updatedAt: string;
+    coordinates?: [number, number]; // [lat, lng]
   };
   members: Traveler[];
   days: DayPlan[];

@@ -1,8 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Trip, Traveler } from '../types/travel';
+import L from 'leaflet';
 import { 
   Navigation, Battery, BatteryWarning, MapPin, 
-  Clock, Bell, Check, Edit2, Send, AlertTriangle, X 
+  Clock, Bell, Check, Edit2, Send, X, Crosshair, 
+  Layers, Maximize2 
 } from 'lucide-react';
 
 interface RendezvousMapProps {
@@ -16,6 +18,10 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
   activeTraveler,
   onUpdateTrip,
 }) => {
+  const mapContainerRef = useRef<HTMLDivElement>(null);
+  const mapInstanceRef = useRef<L.Map | null>(null);
+  const markersRef = useRef<{ [key: string]: L.Marker }>({});
+
   const [isEditingBeacon, setIsEditingBeacon] = useState(false);
   const [beaconName, setBeaconName] = useState(trip.meetupPoint.name);
   const [beaconTime, setBeaconTime] = useState(trip.meetupPoint.time);
@@ -23,6 +29,201 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
 
   const [quickStatus, setQuickStatus] = useState('');
   const [announcementBanner, setAnnouncementBanner] = useState<string | null>(null);
+  const [selectedMember, setSelectedMember] = useState<Traveler | null>(null);
+
+  const beaconCoords: [number, number] = trip.meetupPoint.coordinates || [1.2807, 103.8504];
+
+  // Initialize Leaflet Map
+  useEffect(() => {
+    if (!mapContainerRef.current) return;
+
+    // Cleanup previous map if exists
+    if (mapInstanceRef.current) {
+      mapInstanceRef.current.remove();
+      mapInstanceRef.current = null;
+    }
+
+    const map = L.map(mapContainerRef.current, {
+      center: beaconCoords,
+      zoom: 16,
+      zoomControl: true,
+      attributionControl: true,
+    });
+
+    mapInstanceRef.current = map;
+
+    // High quality Voyager tiles for clear Singapore street detail
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      maxZoom: 19,
+      attribution: '&copy; OpenStreetMap contributors &copy; CARTO',
+    }).addTo(map);
+
+    // Click map to update active traveler location
+    map.on('click', (e: L.LeafletMouseEvent) => {
+      const { lat, lng } = e.latlng;
+      const updatedMembers = trip.members.map((m) => {
+        if (m.id === activeTraveler.id) {
+          return {
+            ...m,
+            coordinates: [parseFloat(lat.toFixed(5)), parseFloat(lng.toFixed(5))] as [number, number],
+            locationName: 'Pin dropped on Singapore map',
+            lastActive: 'Just now',
+          };
+        }
+        return m;
+      });
+
+      onUpdateTrip({
+        ...trip,
+        members: updatedMembers,
+      });
+
+      setAnnouncementBanner(`📍 ${activeTraveler.name} updated location on map.`);
+    });
+
+    // Invalidate size after layout renders
+    const timer = setTimeout(() => {
+      map.invalidateSize();
+    }, 250);
+
+    return () => {
+      clearTimeout(timer);
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+      }
+    };
+  }, []);
+
+  // Update Markers when trip data or active traveler changes
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    // Clear existing markers
+    Object.values(markersRef.current).forEach((m) => m.remove());
+    markersRef.current = {};
+
+    // 1. Add Rendezvous Beacon Marker with Pulsing Ring
+    const beaconHtml = `
+      <div class="relative flex items-center justify-center">
+        <div class="absolute w-12 h-12 bg-amber-400/30 rounded-full animate-ping"></div>
+        <div class="relative w-10 h-10 bg-amber-500 text-slate-950 rounded-full flex items-center justify-center font-bold shadow-lg border-2 border-white ring-2 ring-amber-400">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+        </div>
+      </div>
+    `;
+
+    const beaconIcon = L.divIcon({
+      html: beaconHtml,
+      className: 'custom-beacon-icon',
+      iconSize: [40, 40],
+      iconAnchor: [20, 20],
+      popupAnchor: [0, -22],
+    });
+
+    const beaconMarker = L.marker(beaconCoords, { icon: beaconIcon }).addTo(map);
+    beaconMarker.bindPopup(`
+      <div class="p-1 font-sans text-xs">
+        <div class="font-bold text-slate-900 text-sm flex items-center gap-1">
+          <span>📍 Rendezvous Beacon (${trip.meetupPoint.time})</span>
+        </div>
+        <div class="text-slate-700 font-medium mt-0.5">${trip.meetupPoint.name}</div>
+        <div class="text-slate-500 mt-1 italic">${trip.meetupPoint.notes}</div>
+      </div>
+    `);
+
+    markersRef.current['beacon'] = beaconMarker;
+
+    // 2. Add Member Markers
+    trip.members.forEach((member) => {
+      const coords = member.coordinates || beaconCoords;
+      const isSelected = selectedMember?.id === member.id;
+      const isCurrent = activeTraveler.id === member.id;
+
+      const memberHtml = `
+        <div class="relative group cursor-pointer flex flex-col items-center">
+          <div class="relative">
+            <img 
+              src="${member.avatar}" 
+              alt="${member.name}" 
+              class="w-9 h-9 rounded-full object-cover shadow-md border-2 ${
+                member.isAtMeetup ? 'border-emerald-500 ring-2 ring-emerald-400' : isCurrent ? 'border-amber-500 ring-2 ring-amber-300' : 'border-white'
+              }"
+            />
+            <div class="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full border border-white ${
+              member.isAtMeetup ? 'bg-emerald-500' : member.battery < 20 ? 'bg-rose-500' : 'bg-amber-400'
+            }"></div>
+          </div>
+          <span class="mt-1 px-1.5 py-0.5 rounded text-[10px] font-bold bg-slate-900/90 text-white shadow-xs whitespace-nowrap">
+            ${member.name.split(' ')[0]} ${isCurrent ? '(You)' : ''}
+          </span>
+        </div>
+      `;
+
+      const memberIcon = L.divIcon({
+        html: memberHtml,
+        className: 'custom-traveler-icon',
+        iconSize: [42, 54],
+        iconAnchor: [21, 48],
+        popupAnchor: [0, -45],
+      });
+
+      const memberMarker = L.marker(coords, { icon: memberIcon }).addTo(map);
+      memberMarker.bindPopup(`
+        <div class="p-1 font-sans text-xs">
+          <div class="flex items-center gap-2">
+            <img src="${member.avatar}" class="w-6 h-6 rounded-full object-cover" />
+            <div>
+              <div class="font-bold text-slate-900">${member.name} (${member.role})</div>
+              <div class="text-[11px] text-slate-500">Battery: ${member.battery}% · ${member.lastActive}</div>
+            </div>
+          </div>
+          <div class="mt-2 text-slate-700 bg-slate-50 p-1.5 rounded border border-slate-100">
+            "${member.status}"
+          </div>
+          <div class="mt-1 text-[11px] text-slate-500 font-medium">
+            📍 ${member.locationName}
+          </div>
+        </div>
+      `);
+
+      markersRef.current[member.id] = memberMarker;
+    });
+  }, [trip.members, trip.meetupPoint, activeTraveler.id, selectedMember]);
+
+  const handleFitBounds = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const allPoints: L.LatLngExpression[] = [
+      beaconCoords,
+      ...trip.members.map((m) => m.coordinates || beaconCoords),
+    ];
+
+    const bounds = L.latLngBounds(allPoints);
+    map.fitBounds(bounds, { padding: [50, 50], maxZoom: 17 });
+  };
+
+  const handleCenterOnBeacon = () => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    map.flyTo(beaconCoords, 17, { duration: 1 });
+  };
+
+  const handleFocusMember = (member: Traveler) => {
+    setSelectedMember(member);
+    const map = mapInstanceRef.current;
+    if (!map) return;
+
+    const coords = member.coordinates || beaconCoords;
+    map.flyTo(coords, 18, { duration: 0.8 });
+
+    const marker = markersRef.current[member.id];
+    if (marker) {
+      setTimeout(() => marker.openPopup(), 600);
+    }
+  };
 
   // Group quick check-in for active traveler
   const handleToggleArrived = () => {
@@ -31,7 +232,8 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
         return {
           ...m,
           isAtMeetup: !m.isAtMeetup,
-          status: !m.isAtMeetup ? 'Arrived at Rendezvous Point!' : 'Exploring nearby',
+          coordinates: !m.isAtMeetup ? beaconCoords : m.coordinates,
+          status: !m.isAtMeetup ? 'Arrived at Lau Pa Sat Satay Street!' : 'Exploring nearby',
           lastActive: 'Just now',
         };
       }
@@ -72,6 +274,7 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
     onUpdateTrip({
       ...trip,
       meetupPoint: {
+        ...trip.meetupPoint,
         name: beaconName.trim(),
         time: beaconTime.trim(),
         notes: beaconNotes.trim(),
@@ -114,7 +317,7 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
           <div className="space-y-2">
             <div className="flex items-center gap-2 text-xs font-semibold text-amber-400">
               <Navigation className="w-4 h-4" />
-              <span>ACTIVE GROUP RENDEZVOUS BEACON</span>
+              <span>ACTIVE SINGAPORE RENDEZVOUS BEACON</span>
               <span aria-hidden="true">·</span>
               <span className="text-slate-400 font-normal">{trip.meetupPoint.updatedAt}</span>
             </div>
@@ -190,99 +393,65 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
         </div>
       </div>
 
-      {/* Spatial Radar Simulation */}
-      <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-xs">
-        <div className="flex items-center justify-between mb-4">
+      {/* Real Interactive Leaflet Singapore Map */}
+      <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
+        <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/50">
           <div>
-            <h3 className="text-sm font-bold text-slate-900">Live Spatial Group Radar · Singapore CBD & Telok Ayer</h3>
-            <p className="text-xs text-slate-500">Real-time GPS proximity to the Lau Pa Sat Satay Street meetup beacon.</p>
+            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
+              <MapPin className="w-4 h-4 text-rose-600" />
+              <span>Interactive Singapore GPS Group Map</span>
+            </h3>
+            <p className="text-xs text-slate-500">
+              Live Singapore map view with member markers. Click anywhere on the map to update your location pin!
+            </p>
           </div>
-          <span className="text-[11px] font-medium text-slate-600 bg-slate-100 px-2.5 py-1 rounded-md">
-            Telok Ayer Proximity: Active
-          </span>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <button
+              onClick={handleCenterOnBeacon}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 rounded-lg border border-slate-200 transition-colors shadow-xs"
+              title="Center on Lau Pa Sat Beacon"
+            >
+              <Navigation className="w-3.5 h-3.5 text-amber-500" />
+              <span>Center Beacon</span>
+            </button>
+            <button
+              onClick={handleFitBounds}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 rounded-lg border border-slate-200 transition-colors shadow-xs"
+              title="Show all members and meetup point"
+            >
+              <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
+              <span>Fit All Crew</span>
+            </button>
+          </div>
         </div>
 
-        {/* Visual Map Canvas Simulation */}
-        <div className="relative h-64 sm:h-72 w-full rounded-xl bg-slate-950 overflow-hidden border border-slate-800 flex items-center justify-center">
-          {/* Subtle radial distance rings */}
-          <div className="absolute w-48 h-48 rounded-full border border-slate-800/80 pointer-events-none" />
-          <div className="absolute w-80 h-80 rounded-full border border-slate-800/50 pointer-events-none" />
-          <div className="absolute w-120 h-120 rounded-full border border-slate-800/30 pointer-events-none" />
+        {/* Leaflet Map DOM Element */}
+        <div 
+          ref={mapContainerRef} 
+          className="w-full h-96 sm:h-[450px] relative z-10 bg-slate-100"
+          style={{ minHeight: '380px' }}
+        />
 
-          {/* Central Meetup Beacon */}
-          <div className="absolute z-10 flex flex-col items-center">
-            <div className="w-10 h-10 rounded-full bg-amber-400 text-slate-950 flex items-center justify-center shadow-lg shadow-amber-400/20 ring-4 ring-amber-400/30 animate-pulse">
-              <Navigation className="w-5 h-5" />
-            </div>
-            <span className="mt-1.5 text-[11px] font-bold text-amber-300 bg-slate-900/90 px-2 py-0.5 rounded shadow-sm border border-amber-400/30 whitespace-nowrap">
-              Lau Pa Sat Beacon ({trip.meetupPoint.time})
-            </span>
-          </div>
-
-          {/* Member 1: Alex (Chinatown Hotel, West) */}
-          <div className="absolute top-10 left-16 flex flex-col items-center">
-            <img
-              src={trip.members[0].avatar}
-              alt={trip.members[0].name}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-slate-400 shadow-md"
-              referrerPolicy="no-referrer"
-            />
-            <span className="text-[10px] text-white bg-slate-900/80 px-1.5 py-0.5 rounded mt-1 whitespace-nowrap">
-              Alex (Chinatown 400m)
-            </span>
-          </div>
-
-          {/* Member 2: Priya (At Satay Table 18!) */}
-          <div className="absolute top-24 left-1/2 ml-6 flex flex-col items-center">
-            <img
-              src={trip.members[1].avatar}
-              alt={trip.members[1].name}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400 shadow-md"
-              referrerPolicy="no-referrer"
-            />
-            <span className="text-[10px] text-emerald-300 bg-slate-900/80 px-1.5 py-0.5 rounded mt-1 whitespace-nowrap">
-              Priya (At Table 18)
-            </span>
-          </div>
-
-          {/* Member 3: Wei Ming (Telok Ayer MRT, close) */}
-          <div className="absolute bottom-12 left-1/3 flex flex-col items-center">
-            <img
-              src={trip.members[2].avatar}
-              alt={trip.members[2].name}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-emerald-400 shadow-md"
-              referrerPolicy="no-referrer"
-            />
-            <span className="text-[10px] text-emerald-300 bg-slate-900/80 px-1.5 py-0.5 rounded mt-1 whitespace-nowrap">
-              Wei Ming (MRT Exit A, 90m)
-            </span>
-          </div>
-
-          {/* Member 4: Sarah (Amoy St Shophouses) */}
-          <div className="absolute top-8 right-20 flex flex-col items-center">
-            <img
-              src={trip.members[3].avatar}
-              alt={trip.members[3].name}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-amber-400 shadow-md"
-              referrerPolicy="no-referrer"
-            />
-            <span className="text-[10px] text-amber-300 bg-slate-900/80 px-1.5 py-0.5 rounded mt-1 whitespace-nowrap">
-              Sarah (Amoy St, 280m)
-            </span>
-          </div>
-
-          {/* Member 5: Ryan (Cross St Grab junction) */}
-          <div className="absolute bottom-16 right-1/3 flex flex-col items-center">
-            <img
-              src={trip.members[4].avatar}
-              alt={trip.members[4].name}
-              className="w-8 h-8 rounded-full object-cover ring-2 ring-sky-400 shadow-md"
-              referrerPolicy="no-referrer"
-            />
-            <span className="text-[10px] text-sky-300 bg-slate-900/80 px-1.5 py-0.5 rounded mt-1 whitespace-nowrap">
-              Ryan (Cross St, 150m)
-            </span>
-          </div>
+        {/* Quick Member Quick-Jump Bar under Map */}
+        <div className="p-3 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar text-xs">
+          <span className="text-[11px] font-medium text-slate-400 shrink-0">Jump to:</span>
+          {trip.members.map((m) => (
+            <button
+              key={m.id}
+              onClick={() => handleFocusMember(m)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-slate-100 hover:bg-slate-200 transition-colors whitespace-nowrap shrink-0 text-slate-800"
+            >
+              <img
+                src={m.avatar}
+                alt={m.name}
+                className="w-4 h-4 rounded-full object-cover shrink-0"
+                referrerPolicy="no-referrer"
+              />
+              <span className="font-medium">{m.name.split(' ')[0]}</span>
+              {m.isAtMeetup && <span className="text-emerald-600 font-bold">✓</span>}
+            </button>
+          ))}
         </div>
       </div>
 
@@ -294,7 +463,7 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
             type="text"
             value={quickStatus}
             onChange={(e) => setQuickStatus(e.target.value)}
-            placeholder={`Broadcast quick note to group as ${activeTraveler.name} (e.g. "Grabbing water bottles, be there in 3 mins")...`}
+            placeholder={`Broadcast quick note to group as ${activeTraveler.name} (e.g. "Grabbing sugarcane juice, be there in 3 mins")...`}
             className="flex-1 px-3 py-1.5 text-xs border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-slate-900"
           />
           <button
@@ -313,7 +482,8 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
             return (
               <div
                 key={member.id}
-                className={`bg-white rounded-xl border p-4 shadow-xs transition-all ${
+                onClick={() => handleFocusMember(member)}
+                className={`bg-white rounded-xl border p-4 shadow-xs transition-all cursor-pointer hover:border-slate-300 ${
                   member.isAtMeetup ? 'border-emerald-200 bg-emerald-50/15' : 'border-slate-200'
                 }`}
               >
@@ -377,7 +547,7 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
         <div className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4">
           <div className="bg-white rounded-2xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 animate-in fade-in zoom-in-95 duration-150">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
-              <h3 className="text-base font-bold text-slate-900">Set Rendezvous Beacon</h3>
+              <h3 className="text-base font-bold text-slate-900">Set Singapore Rendezvous Beacon</h3>
               <button onClick={() => setIsEditingBeacon(false)} className="p-1 text-slate-400 hover:text-slate-600">
                 <X className="w-5 h-5" />
               </button>
@@ -391,7 +561,7 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
                   required
                   value={beaconName}
                   onChange={(e) => setBeaconName(e.target.value)}
-                  placeholder="e.g. Vernazza Harbor Piazza Marconi (by the fountain)"
+                  placeholder="e.g. Lau Pa Sat Satay Street (Table 18)"
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-slate-900"
                 />
               </div>
@@ -414,7 +584,7 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
                   rows={2}
                   value={beaconNotes}
                   onChange={(e) => setBeaconNotes(e.target.value)}
-                  placeholder="e.g. Marcus has boat passes. We walk together to the pier."
+                  placeholder="e.g. Priya has choped the table with tissue packs. Stalls 7 & 8 satay feast starts 18:45."
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-slate-900"
                 />
               </div>
