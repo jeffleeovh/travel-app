@@ -50,8 +50,8 @@ export const TravellerManager: React.FC<TravellerManagerProps> = ({
   onUpdateTrip,
   onSelectTraveler,
 }) => {
-  const isOrganizer = activeTraveler.role === 'Organizer';
-  const organizerMember = trip.members.find((m) => m.role === 'Organizer') || trip.members[0];
+  const isOrganizer = activeTraveler.role === 'Organizer' || activeTraveler.role === 'Tour Leader';
+  const organizerMember = trip.members.find((m) => m.role === 'Organizer' || m.role === 'Tour Leader') || trip.members[0];
 
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
@@ -444,7 +444,7 @@ export const TravellerManager: React.FC<TravellerManagerProps> = ({
                       {/* Role Badge */}
                       <div className="flex items-center gap-1.5 mt-0.5">
                         <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-md ${
-                          member.role === 'Organizer' ? 'bg-amber-100 text-amber-900 font-bold' :
+                          member.role === 'Organizer' || member.role === 'Tour Leader' ? 'bg-amber-100 text-amber-900 font-bold' :
                           member.role === 'Navigator' ? 'bg-sky-100 text-sky-800' :
                           member.role === 'Foodie' ? 'bg-orange-100 text-orange-800' :
                           member.role === 'Budget Master' ? 'bg-emerald-100 text-emerald-800' :
@@ -673,6 +673,7 @@ export const TravellerManager: React.FC<TravellerManagerProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-slate-900 bg-white"
                 >
                   <option value="Traveler">Traveler (General Member)</option>
+                  <option value="Tour Leader">Tour Leader (Itinerary & Tour Guide)</option>
                   <option value="Organizer">Organizer (Full Admin Rights)</option>
                   <option value="Navigator">Navigator (Maps & Transit Lead)</option>
                   <option value="Foodie">Foodie (Hawker & Dining Scout)</option>
@@ -849,6 +850,7 @@ export const TravellerManager: React.FC<TravellerManagerProps> = ({
                   className="w-full px-3 py-2 border border-slate-300 rounded-lg focus:outline-hidden focus:ring-2 focus:ring-slate-900 text-slate-900 bg-white"
                 >
                   <option value="Organizer">Organizer (Full Admin Rights)</option>
+                  <option value="Tour Leader">Tour Leader (Itinerary & Tour Guide)</option>
                   <option value="Navigator">Navigator (Maps & Transit Lead)</option>
                   <option value="Foodie">Foodie (Hawker & Dining Scout)</option>
                   <option value="Budget Master">Budget Master (Expense Oversight)</option>

@@ -162,6 +162,7 @@ export default function App() {
             activeTraveler={activeTraveler}
             onUpdateTrip={handleUpdateTrip}
             onNavigateToRendezvous={() => setCurrentTab('rendezvous')}
+            onSelectTraveler={handleSelectTraveler}
           />
         )}
 

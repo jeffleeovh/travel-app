@@ -1,7 +1,7 @@
 export interface Traveler {
   id: string;
   name: string;
-  role: 'Organizer' | 'Navigator' | 'Foodie' | 'Budget Master' | 'Photographer' | 'Traveler';
+  role: 'Organizer' | 'Tour Leader' | 'Navigator' | 'Foodie' | 'Budget Master' | 'Photographer' | 'Traveler';
   avatar: string;
   phone: string;
   whatsappNumber: string;
@@ -38,6 +38,7 @@ export interface DayPlan {
     condition: string;
     icon: string;
   };
+  leaderBriefing?: string;
   activities: ActivityItem[];
 }
 
