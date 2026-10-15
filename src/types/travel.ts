@@ -1,9 +1,11 @@
 export interface Traveler {
   id: string;
   name: string;
-  role: 'Organizer' | 'Navigator' | 'Foodie' | 'Budget Master' | 'Photographer';
+  role: 'Organizer' | 'Navigator' | 'Foodie' | 'Budget Master' | 'Photographer' | 'Traveler';
   avatar: string;
   phone: string;
+  whatsappNumber: string;
+  nationality: string;
   status: string;
   locationName: string;
   battery: number;

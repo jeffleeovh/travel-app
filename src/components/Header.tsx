@@ -23,6 +23,7 @@ export const Header: React.FC<HeaderProps> = ({
 
   const navItems = [
     { id: 'itinerary', label: 'Itinerary' },
+    { id: 'travellers', label: `Travellers (${allMembers.length})` },
     { id: 'voting', label: 'Group Votes' },
     { id: 'expenses', label: 'FairShare Ledger' },
     { id: 'rendezvous', label: 'Live Rendezvous' },
@@ -109,8 +110,15 @@ export const Header: React.FC<HeaderProps> = ({
                           referrerPolicy="no-referrer"
                         />
                         <div>
-                          <div className="text-slate-900">{member.name}</div>
-                          <div className="text-[10px] text-slate-400 font-normal">{member.role}</div>
+                          <div className="text-slate-900 flex items-center gap-1.5">
+                            <span>{member.name}</span>
+                            {member.role === 'Organizer' && (
+                              <span className="text-[9px] bg-amber-100 text-amber-800 font-bold px-1 rounded">Org</span>
+                            )}
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-normal">
+                            {member.nationality || 'Singaporean 🇸🇬'} · {member.role}
+                          </div>
                         </div>
                       </div>
                       {activeTraveler.id === member.id && (
@@ -118,6 +126,17 @@ export const Header: React.FC<HeaderProps> = ({
                       )}
                     </button>
                   ))}
+                </div>
+                <div className="p-2 border-t border-slate-100 bg-slate-50/50">
+                  <button
+                    onClick={() => {
+                      onTabChange('travellers');
+                      setShowPersonaMenu(false);
+                    }}
+                    className="w-full py-1.5 px-2 text-center text-xs font-semibold text-slate-800 bg-white hover:bg-slate-100 border border-slate-200 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <span>Manage Travellers Roster</span>
+                  </button>
                 </div>
               </div>
             )}

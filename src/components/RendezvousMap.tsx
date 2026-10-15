@@ -4,7 +4,7 @@ import L from 'leaflet';
 import { 
   Navigation, Battery, BatteryWarning, MapPin, 
   Clock, Bell, Check, Edit2, Send, X, Crosshair, 
-  Layers, Maximize2 
+  Layers, Maximize2, MessageCircle
 } from 'lucide-react';
 
 interface RendezvousMapProps {
@@ -502,7 +502,11 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
                           <span className="text-[10px] text-slate-500 font-normal">(You)</span>
                         )}
                       </div>
-                      <div className="text-[11px] text-slate-400">{member.role}</div>
+                      <div className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                        <span>{member.nationality || 'Singaporean 🇸🇬'}</span>
+                        <span aria-hidden="true">·</span>
+                        <span>{member.role}</span>
+                      </div>
                     </div>
                   </div>
 
@@ -535,6 +539,24 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
                       {member.isAtMeetup ? 'At Meetup Beacon' : 'Away'}
                     </span>
                   </div>
+
+                  {/* WhatsApp Direct Link */}
+                  {(member.whatsappNumber || member.phone) && (
+                    <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                      <span className="text-[11px] font-tabular text-slate-500">
+                        {member.whatsappNumber || member.phone}
+                      </span>
+                      <a
+                        href={`https://wa.me/${(member.whatsappNumber || member.phone).replace(/[^0-9]/g, '')}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[11px] font-semibold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors"
+                      >
+                        <MessageCircle className="w-3 h-3 text-emerald-600" />
+                        <span>WhatsApp</span>
+                      </a>
+                    </div>
+                  )}
                 </div>
               </div>
             );

@@ -103,7 +103,12 @@ export function generateWhatsAppSummary(trip: Trip, activeDay: DayPlan): string 
     });
   }
 
+  let roster = `\n👥 *CREW DIRECTORY (${trip.members.length} Travellers)*\n`;
+  trip.members.forEach((m) => {
+    roster += `• ${m.name} (${m.nationality || 'Singaporean 🇸🇬'} · ${m.role}): ${m.whatsappNumber || m.phone}\n`;
+  });
+
   const footer = `\n📲 _Generated via CrewVoyage Singapore Group Hub_`;
 
-  return `${header}${meetup}${schedule}${debts}${footer}`;
+  return `${header}${meetup}${schedule}${debts}${roster}${footer}`;
 }

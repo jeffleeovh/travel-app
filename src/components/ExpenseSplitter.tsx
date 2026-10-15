@@ -304,7 +304,7 @@ export const ExpenseSplitter: React.FC<ExpenseSplitterProps> = ({
                       )}
                     </td>
                     <td className="py-3.5 px-4 text-slate-600">
-                      {isAll ? 'All 5 Travelers' : `${exp.splitWithIds.length} Travelers`}
+                      {isAll ? `All ${trip.members.length} Travelers` : `${exp.splitWithIds.length} Travelers`}
                     </td>
                     <td className="py-3.5 px-4 text-right font-bold font-tabular text-slate-900 text-sm">
                       {formatCurrency(exp.amount, exp.currency)}

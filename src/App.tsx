@@ -8,6 +8,7 @@ import { ExpenseSplitter } from './components/ExpenseSplitter';
 import { RendezvousMap } from './components/RendezvousMap';
 import { LocalInsiderView } from './components/LocalInsiderView';
 import { PackingList } from './components/PackingList';
+import { TravellerManager } from './components/TravellerManager';
 import { WhatsAppExportModal } from './components/WhatsAppExportModal';
 import { 
   Users, Sparkles, Shield, HeartHandshake, 
@@ -19,7 +20,17 @@ export default function App() {
     const saved = localStorage.getItem('crewvoyage_trip');
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        if (parsed && Array.isArray(parsed.members)) {
+          // Normalize legacy cached members to ensure nationality & whatsappNumber are present
+          parsed.members = parsed.members.map((m: any, idx: number) => ({
+            ...m,
+            role: m.role || 'Traveler',
+            nationality: m.nationality || (idx === 0 || idx === 1 ? 'Singaporean 🇸🇬' : idx === 2 ? 'Malaysian 🇲🇾' : idx === 3 ? 'British 🇬🇧' : 'Australian 🇦🇺'),
+            whatsappNumber: m.whatsappNumber || m.phone || '+65 9123 4567',
+          }));
+        }
+        return parsed;
       } catch (e) {
         console.error('Failed to parse cached trip:', e);
       }
@@ -151,6 +162,15 @@ export default function App() {
             activeTraveler={activeTraveler}
             onUpdateTrip={handleUpdateTrip}
             onNavigateToRendezvous={() => setCurrentTab('rendezvous')}
+          />
+        )}
+
+        {currentTab === 'travellers' && (
+          <TravellerManager
+            trip={trip}
+            activeTraveler={activeTraveler}
+            onUpdateTrip={handleUpdateTrip}
+            onSelectTraveler={handleSelectTraveler}
           />
         )}
 
