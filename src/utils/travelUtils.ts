@@ -102,8 +102,31 @@ export function generateWhatsAppSummary(trip: Trip, activeDay: DayPlan): string 
       debts += `• ${from} ➡️ ${to}: ${formatCurrency(s.amount, trip.currency)}\n`;
     });
   }
-
   const footer = `\n📲 _Generated via CrewVoyage Singapore Group Hub_`;
-
   return `${header}${meetup}${schedule}${debts}${footer}`;
+}
+
+export function calculateDistanceMeters(coord1: [number, number], coord2: [number, number]): number {
+  const R = 6371e3; // Earth radius in meters
+  const lat1 = (coord1[0] * Math.PI) / 180;
+  const lat2 = (coord2[0] * Math.PI) / 180;
+  const dLat = ((coord2[0] - coord1[0]) * Math.PI) / 180;
+  const dLon = ((coord2[1] - coord1[1]) * Math.PI) / 180;
+
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+  return Math.round(R * c);
+}
+
+export function formatWalkingEta(distanceMeters: number): string {
+  if (distanceMeters < 50) return 'At beacon (0 min)';
+  const mins = Math.ceil(distanceMeters / 80);
+  if (distanceMeters < 1000) {
+    return `${distanceMeters}m (~${mins} min walk)`;
+  }
+  const km = (distanceMeters / 1000).toFixed(1);
+  return `${km} km (~${mins} min walk)`;
 }

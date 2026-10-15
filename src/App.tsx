@@ -68,6 +68,7 @@ export default function App() {
           time: '16:30',
           notes: 'Family regroup before Supertree light show. Shaded benches, stroller parking & baby changing nearby.',
           updatedAt: 'Just now by Family Lead',
+          coordinates: [1.2816, 103.8636],
         },
       });
     } else if (mode === 'agency') {
@@ -80,6 +81,7 @@ export default function App() {
           time: '18:00',
           notes: 'Agent briefing: VIP 24-seater coach departing for Chilli Crab banquet at Riverside Quay.',
           updatedAt: 'Managed via Travel Agent Portal (Freemium Tier Active)',
+          coordinates: [1.2838, 103.8591],
         },
       });
     } else {
