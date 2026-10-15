@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Trip, Traveler } from '../types/travel';
 import L from 'leaflet';
+import { GoogleRendezvousMap } from './GoogleRendezvousMap';
 import { 
   Navigation, Battery, BatteryWarning, MapPin, 
   Clock, Bell, Check, Edit2, Send, X, Crosshair, 
@@ -30,11 +31,13 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
   const [quickStatus, setQuickStatus] = useState('');
   const [announcementBanner, setAnnouncementBanner] = useState<string | null>(null);
   const [selectedMember, setSelectedMember] = useState<Traveler | null>(null);
+  const [mapEngine, setMapEngine] = useState<'google' | 'leaflet'>('google');
 
   const beaconCoords: [number, number] = trip.meetupPoint.coordinates || [1.2807, 103.8504];
 
-  // Initialize Leaflet Map
+  // Initialize Leaflet Map if selected
   useEffect(() => {
+    if (mapEngine !== 'leaflet') return;
     if (!mapContainerRef.current) return;
 
     // Cleanup previous map if exists
@@ -393,7 +396,7 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
         </div>
       </div>
 
-      {/* Real Interactive Leaflet Singapore Map */}
+      {/* Interactive Singapore GPS Map */}
       <div className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-xs">
         <div className="p-4 border-b border-slate-100 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 bg-slate-50/50">
           <div>
@@ -407,31 +410,69 @@ export const RendezvousMap: React.FC<RendezvousMapProps> = ({
           </div>
 
           <div className="flex items-center gap-2 shrink-0">
-            <button
-              onClick={handleCenterOnBeacon}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 rounded-lg border border-slate-200 transition-colors shadow-xs"
-              title="Center on Lau Pa Sat Beacon"
-            >
-              <Navigation className="w-3.5 h-3.5 text-amber-500" />
-              <span>Center Beacon</span>
-            </button>
-            <button
-              onClick={handleFitBounds}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 rounded-lg border border-slate-200 transition-colors shadow-xs"
-              title="Show all members and meetup point"
-            >
-              <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
-              <span>Fit All Crew</span>
-            </button>
+            {/* Map Engine Selector */}
+            <div className="flex items-center bg-slate-200/80 p-0.5 rounded-lg text-xs font-semibold">
+              <button
+                onClick={() => setMapEngine('google')}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  mapEngine === 'google'
+                    ? 'bg-white text-slate-950 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                Google Maps
+              </button>
+              <button
+                onClick={() => setMapEngine('leaflet')}
+                className={`px-2.5 py-1 rounded-md transition-colors ${
+                  mapEngine === 'leaflet'
+                    ? 'bg-white text-slate-950 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                OpenStreetMap
+              </button>
+            </div>
+
+            {mapEngine === 'leaflet' && (
+              <>
+                <button
+                  onClick={handleCenterOnBeacon}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 rounded-lg border border-slate-200 transition-colors shadow-xs"
+                  title="Center on Lau Pa Sat Beacon"
+                >
+                  <Navigation className="w-3.5 h-3.5 text-amber-500" />
+                  <span>Center Beacon</span>
+                </button>
+                <button
+                  onClick={handleFitBounds}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold bg-white hover:bg-slate-100 text-slate-800 rounded-lg border border-slate-200 transition-colors shadow-xs"
+                  title="Show all members and meetup point"
+                >
+                  <Maximize2 className="w-3.5 h-3.5 text-slate-600" />
+                  <span>Fit All Crew</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
 
-        {/* Leaflet Map DOM Element */}
-        <div 
-          ref={mapContainerRef} 
-          className="w-full h-96 sm:h-[450px] relative z-10 bg-slate-100"
-          style={{ minHeight: '380px' }}
-        />
+        {/* Map View Port */}
+        {mapEngine === 'google' ? (
+          <GoogleRendezvousMap
+            trip={trip}
+            activeTraveler={activeTraveler}
+            onUpdateTrip={onUpdateTrip}
+            selectedMember={selectedMember}
+            onSelectMember={setSelectedMember}
+          />
+        ) : (
+          <div 
+            ref={mapContainerRef} 
+            className="w-full h-96 sm:h-[450px] relative z-10 bg-slate-100"
+            style={{ minHeight: '380px' }}
+          />
+        )}
 
         {/* Quick Member Quick-Jump Bar under Map */}
         <div className="p-3 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto no-scrollbar text-xs">
